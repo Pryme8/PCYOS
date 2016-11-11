@@ -4,7 +4,7 @@
 
 
 CYOS = function(){
-
+	this.console = new CYOS.console(this);
 	this.wireSystem = new CYOS.wireSystem(this);
 	this._initBJS();
 	this._delta = 0;
@@ -152,15 +152,39 @@ CYOS.prototype._bindings = function(){
 			
 			var t = e.target;
 			var act = t.getAttribute('act');
-			if(act){e.preventDefault();}
 			switch(act){
 				case 'change-active-node':
+					e.preventDefault();
 					changeActiveMD(e);
 				break;	
 			}
 	};
 	
+	//input change
+	function inch(e){		
+			var t = e.target;
+			var act = t.getAttribute('act');
+			switch(act){
+				case 'node-name':
+					var v = CYOS.tools.cleanName(t.value);
+					self._activeNode.name = v;				
+					self._activeNode.dom.base.querySelector('[id=node-name]').innerHTML = v;
+					t.value = v;
+				break;
+				case 'setting-key':
+					var v = t.value;
+					self._activeNode.settings[t.getAttribute('id')] = v;				
+					break;		
+			}
+			self._CS = (new Date).getTime();
+			self.console.push("Compile Started at: "+self._CS);
+			setTimeout(function(){self.compile();},0);
+		
+	}
+	
+	
 	document.addEventListener('mousedown', mdf, false);
+	document.addEventListener('change', inch, false);
 };
 
 
@@ -189,6 +213,16 @@ CYOS.prototype.findNodeById = function(id){
 	return false;
 };
 
+CYOS.prototype.findPortById = function(node, id){
+	var ports = [];
+	ports.concat(node.inputs, node.outputs);
+	for(var i = 0; i<ports.length; i++){
+		var p = this.ports[i];
+		if(p._id == id){return p}		
+	}
+	return false;
+};
+
 CYOS.prototype.updateDOM = function(){
 	var sb = document.getElementById('active-settings');
 	sb = sb.querySelector('[class="sub-pane-content"]');
@@ -199,7 +233,7 @@ CYOS.prototype._settingsString = function(){
 	var node = this._activeNode;
 	var s = "<div class=s-item>"+
 				"<div class='s-item-head'>Node Name</div>"+
-				"<input id='node-name' class='s-input' value='"+node.name+"' />"+
+				"<input id='node-name' class='s-input' value='"+node.name+"' act='node-name'> </input>"+
 				"</div>";
 	
 	function parseObject(n) {
@@ -209,19 +243,20 @@ CYOS.prototype._settingsString = function(){
         else{
 			s+="<div class=s-item>"+
 				"<div class='s-item-head'>"+keys[i]+"</div>"+
-				"<input id='"+keys[i]+"' class='s-input' value='"+n[keys[i]]+"' />"+
+				"<input id='"+keys[i]+"' class='s-input' value='"+n[keys[i]]+"' act='setting-key'> </input>"+
 				"</div>";			
 			}
    		}
 	}
 	function parseObjectLink(n) {
-    var keys = Object.keys(n);
+    var keys = Object.keys(n.settings);
     for (var i = 0; i < keys.length; i++) {
-        if (typeof n[keys[i]] === 'object') parseObject(n[keys[i]])
+        if (typeof n.settings[keys[i]] === 'object') parseObject(n[keys[i]])
         else{
 			s+="<div class=in-item>"+
-				"<div class='in-item-head'>"+keys[i]+":"+n[keys[i]]+"</div>"+
-				
+				"<div class='in-item-head'>"+keys[i]+n._id;
+				s+= n.outputs[0]._id;
+				s+=":"+n.settings[keys[i]]+"</div>"+				
 				"</div>";			
 			}
    		}
@@ -247,7 +282,7 @@ CYOS.prototype._settingsString = function(){
 				continue;
 			}
 			
-			parseObjectLink(OUT.parent.settings);
+			parseObjectLink(OUT.parent);
 	}
 	
 	/*for(var i = 0; i<node.outputs.length; i++){
@@ -403,7 +438,7 @@ CYOS.nodes = {
 			z : '0.0',
 		},
 		compile : function(parent){							
-				return "vec3  "+parent.name+parent._id+" = vec3("+parent.settings.x+","+parent.settings.y+","+parent.settings.z+");";
+				return "vec3 "+parent.name+parent._id+" = vec3("+parent.settings.x+","+parent.settings.y+","+parent.settings.z+");";
 		},
 		pImgData : null,
 		preview : function(parent){							
@@ -422,7 +457,7 @@ CYOS.nodes = {
 			a : '0.0',
 		},
 		compile : function(parent){							
-				return "vec3  "+parent.name+parent._id+" = vec3("+parent.settings.r+","+parent.settings.b+","+parent.settings.g+","+parent.settings.a+");";
+				return "vec3 "+parent.name+parent._id+" = vec3("+parent.settings.r+","+parent.settings.b+","+parent.settings.g+","+parent.settings.a+");";
 		},
 		pImgData : null,
 		preview : function(parent){							
@@ -453,7 +488,9 @@ CYOS.nodes = {
 		settings : {
 			outputString : "vec4(0.0,0.0,0.0,1.0)"
 		},
-		compile : function(parent){							
+		compile : function(parent){
+			
+										
 				return "gl_FragColor = "+parent.settings.outPutString+";";
 		},
 		pImgData : null,
@@ -468,38 +505,26 @@ CYOS.prototype.attach = function(node, target){
 };
 
 
-CYOS.tools = {
-nodeDOM : function(node){
-	var dom = {};
-		dom.base = document.createElement('div');
-		var name = node.name.replace(" ", "-");
-		dom.base.setAttribute('class', 'node '+name);
-		dom.base.setAttribute('id', 'n'+node._id);
-		name = node.name.replace("-", "");
-		dom.string = "<div class='node-head'><a href='#' act='change-active-node' t='"+node._id+"'>"+name+"</a></div>";
-		dom.string += "<canvas width='80px'; height='80px;'></canvas>";
-		var ports = "<div class='port-block in'>";
-		var pUID = 0;
-	if((node.inputs) && node.inputs.length){
-		for(var i = 0; i < node.inputs.length; i++, pUID++){
-		 ports +="<div class='port in empty' id='p"+pUID+"'></div>";
-		}
-	}
-	
-	ports += "</div><div class='port-block out'>";
-	
-	if((node.outputs) && node.outputs.length){
-		for(var i = 0; i < node.outputs.length; i++, pUID++){
-			ports +="<div class='port out empty' id='p"+pUID+"'></div>";
-		}
-	}
-	ports += "</div>";
-	dom.string += ports;
-	dom.base.innerHTML = dom.string;
+CYOS.prototype.getLinkValues = function(node){
+reg = new RegExp(  "@.",  "g");
+	var keys = Object.keys(node.settings);
+	var linkVal = {};
+    for (var i = 0; i < keys.length; i++) {
+      
 		
-	return dom;
-},
+			//"<input id='"+keys[i]+"' class='s-input' value='"+n[keys[i]]+"' act='setting-key'> </input>"+
+				
+			
+   		}
+
+}
+
+
+CYOS.prototype.findPortValue = function(nodeID, portID, key){
+	var n = this.findNodeById(nodeID);
+	
 };
+
 
 
 CYOS.port = function(node){
@@ -640,16 +665,157 @@ CYOS.wireSystem.prototype.redraw = function(){
 
 CYOS.prototype.compile = function(){
 	var fragShade = this.glFragC;
-	var chain = this.checkChain([fragShade.inputs[0]])
+	var IN = fragShade.inputs[0];	
+	var outID;
+	var chain = [];
+	if((typeof IN != 'undefined') && typeof IN.links[0] != 'undefined'){
+		IN = IN.links[0];
+		if(IN.parent._id != fragShade._id){
+			outID = IN.B._id;
+			IN = IN.B.parent;
+			
+		}else{
+			outID = IN.A._id;
+			IN = IN.A.parent;	
+		}
+		
+		chain.push(IN);
 	
-	
+		var kickout = false;
+		var i = 0;
+		var step = [];
+		while(!kickout){
+			if(i==0){
+				step = this.checkNextChainStep(chain);
+				if(!step){kickout=true;}
+			}
+			
+			i++;
+		}
+		this.console.push((i)+": Step(s) in the gl_FragColor Chain");
+		
+		this.compileChain(chain);
+		
+		
+	}else{
+		//PUSH ERROR TO CONSOLE!
+		this.console.push("No gl_FragColor Chain!");	
+	}
 };
 
-CYOS.prototype.checkChain = function(chain){
-	
-	
-	
+
+CYOS.prototype.compileChain = function(chain){
+	var s = "";
+	for(var i = 0; i<chain.length; i++){
+			n = chain[i];
+			s+= n.compile();
+	}
+	console.log(s);	
 };
+
+
+CYOS.prototype.checkNextChainStep = function(chain){
+	var lastStep = chain[chain.length-1];
+	var newSteps = [];
+	if(typeof lastStep.inputs != 'undefined'){
+	for(var i = 0; i<lastStep.inputs.length; i++){
+	var IN = lastStep.inputs[i];	
+	var outID;
+	var chain = [];
+	if((typeof IN != 'undefined') && typeof IN.links[0] != 'undefined'){
+		IN = IN.links[0];
+		if(IN.parent._id != fragShade._id){
+			outID = IN.B._id;
+			IN = IN.B.parent;
+			
+		}else{
+			outID = IN.A._id;
+			IN = IN.A.parent;	
+		}
+		newSteps.push(IN);
+	}else{
+		continue;	
+	}
+	}
+	if(newSteps.length){
+	return newSteps;
+	}else{
+	return false;	
+	}
+	}else{
+	return false;	
+	}
+	
+	
+			
+};
+
+
+
+
+CYOS.tools = {
+nodeDOM : function(node){
+	var dom = {};
+		dom.base = document.createElement('div');
+		var name = node.name.replace(" ", "-");
+		dom.base.setAttribute('class', 'node '+name);
+		dom.base.setAttribute('id', 'n'+node._id);
+		name = node.name.replace("-", "");
+		dom.string = "<div class='node-head'><a href='#' id='node-name' act='change-active-node' t='"+node._id+"'>"+name+"</a></div>";
+		dom.string += "<canvas width='80px'; height='80px;'></canvas>";
+		var ports = "<div class='port-block in'>";
+		var pUID = 0;
+	if((node.inputs) && node.inputs.length){
+		for(var i = 0; i < node.inputs.length; i++, pUID++){
+		 ports +="<div class='port in empty' id='p"+pUID+"'></div>";
+		}
+	}
+	
+	ports += "</div><div class='port-block out'>";
+	
+	if((node.outputs) && node.outputs.length){
+		for(var i = 0; i < node.outputs.length; i++, pUID++){
+			ports +="<div class='port out empty' id='p"+pUID+"'></div>";
+		}
+	}
+	ports += "</div>";
+	dom.string += ports;
+	dom.base.innerHTML = dom.string;
+		
+	return dom;
+},
+cleanName : function(string){
+	string = string.replace(/[^A-Za-z0-9_]/g, "");
+	return string
+}
+};
+
+CYOS.console = function(parent){
+	this.parent = parent;
+	this.dom = (document.getElementById('console')).querySelector('.sub-pane-content');
+	this.history = [];
+	return this;
+};
+
+CYOS.console.prototype.push = function(msg){
+	var m = new CYOS.console.msg(msg);	
+	if(this.history.length){	
+	this.dom.insertBefore( m.block, this.dom.firstChild );
+	}else{
+		this.dom.appendChild( m.block);
+	}
+	this.history.push(m);
+};
+
+CYOS.console.msg = function(msg){
+	this.block = document.createElement('div');
+	this.block.setAttribute('class', 'console-item');
+	this.now = new Date();
+	this.msg = msg;
+	this.block.innerHTML = "<span>"+this.now.getHours()+":"+this.now.getMinutes()+":"+this.now.getSeconds()+"</span><span>"+msg+"</span>";
+	return this;
+};
+
 
 
 
