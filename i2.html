@@ -440,6 +440,32 @@ toggle.active::before{
   display: block;
 	width:100%;
 }
+
+#console{
+	height: 340px;
+}
+
+.console-item{
+	font-size: 10px;
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+	white-space: nowrap;
+}
+
+.console-item span:nth-of-type(1){
+	padding:0.5em;
+	background: rgba(0,0,0,0.5);
+	color:white;
+	display: inline-block;
+	width:30px;
+}
+.console-item span:nth-of-type(2){
+	padding:0.5em;
+	background: rgba(255,255,255,0.5);
+	color:black;
+	display: inline-block;
+	width:calc(100% - 30px);
+}
 	  
    </style>
 <!-- Includes !--> 
