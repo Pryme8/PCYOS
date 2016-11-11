@@ -1,0 +1,587 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Create Your Own Shader?</title>
+<meta name="viewport" 
+  content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+ <style>
+
+      html, body {
+         overflow: hidden;
+         width: 100%;
+         height: 100%;
+		 min-height:100%;
+         margin: 0;
+         padding: 0;
+		 background: #b4c8b4;
+      }
+	   #shaderCanvas{
+			width:100%;
+			height:100%;
+			touch-action: none;
+	  }
+	  .full-wrap{
+	  	display:block;
+		position:absolute;
+		width:100%;
+		height:100%;
+		left:0;
+		top:0;
+	  }
+	  .menu{
+  		display: inline-block;
+ 		 position: absolute;
+  		padding: 0;
+  		margin: 0;	
+		width:100%;
+		background:#353b35;
+		height:1.5em;
+		z-index:10000001;
+		}
+
+.menu-top-item{
+	display:inline-block;	
+	cursor:pointer;
+	font-variant:small-caps;
+	color:#CCC;
+	font-weight:bold;
+	margin:0 0.5em;
+	padding:0 0.2em;
+	font-family:"Lucida Console", Monaco, monospace;
+	height:100%;
+}
+
+.menu-top-item .menu-sub{
+	display:none;
+	position:absolute;
+	top:100%;
+	min-width:120px;
+	font-size: 0.8em;
+}
+
+.menu-top-item:hover > .menu-sub{
+	display:block;
+	background:#666;
+	
+}
+
+.menu-top-item .menu-item{
+  position:relative;
+  display:block;
+	width:100%;
+	background:#666;
+	color: #ccc;
+	padding: 0.1em 0.4em;
+	padding-right: 1.5em;
+	text-align: left;
+}
+
+.menu-top-item .menu-item:hover{
+	background:#999;
+	color: #fff;
+
+}
+
+.menu-top-item .menu-item:hover > .menu-sub{
+ display:block;
+	position:absolute;
+	top:0;
+  left:100%;
+}
+
+hr{
+	margin-top: -1px;
+	margin-bottom: -1px;
+	height:2px;
+	position:relative;
+}
+
+hr::after{
+	display:block;
+	position: absolute;
+	pointer-events: none;
+	content: '';
+	top:0;
+	right:0;
+	left:0;
+	height:1px;
+	background:rgba(0,0,0,0.68);
+}
+
+
+.hasSub::after{
+	display:block;
+	position: absolute;
+	pointer-events: none;
+	content: '►';
+	font-size: 0.65em;
+	top:50%;
+	right:0.5em;
+	transform: translate(0,-50%);
+}
+
+menu .disabled{
+  pointer-events: none;
+	opacity:0.6;
+}
+
+toggle{
+	padding-left:1.5em;
+}
+
+toggle::before{
+	display:block;
+	position: absolute;
+	pointer-events: none;
+	content: '';
+	font-size: 0.65em;
+	height:1em;
+	width:1em;
+	border:1px solid black;
+	top:50%;
+	left:0.5em;
+	transform: translate(0,-50%);
+	border-radius: 1em;
+	-webkit-border-radius: 1em;
+}
+
+toggle.active::before{
+	display:block;
+	position: absolute;
+	pointer-events: none;
+	content: '';
+	font-size: 0.65em;
+	height:1em;
+	width:1em;
+	border:1px solid black;
+	top:50%;
+	left:0.5em;
+	transform: translate(0,-50%);
+	border-radius: 1em;
+	-webkit-border-radius: 1em;
+	background:#900;
+	
+}
+
+.pane{
+	display:block;
+	position:absolute;
+	margin:0;
+	padding:0;
+	box-sizing:border-box;
+	-moz-box-sizing:border-box;
+	-webkit-box-sizing:border-box;
+}
+
+#node-select{
+	background:#a5aea5;
+}
+
+.editor-view#node-select{
+	left:0;
+	top:0;
+	bottom:0;
+	width:120px;
+	z-index:101;
+	padding-top:1.5em;
+}
+#node-stack{
+	background:rgba(0,0,0,0.35);
+}
+
+.editor-view#node-stack{
+	left:120px;
+	top:0;
+	bottom:0;
+	width:calc(100% - 200px - 120px);
+	z-index:100;
+	padding-top:1.5em;
+}
+#settings{
+	background:#a5aea5;
+}
+
+.editor-view#settings{
+	right:0;
+	top:0;
+	bottom:0;
+	width:200px;
+	z-index:101;
+	padding-top:1.5em;
+}
+#preview{
+	background:rgba(0,0,0,1);
+}
+
+.editor-view#preview{
+	left:6px;
+	height:320px;
+	bottom:6px;
+	width:320px;
+	z-index:102;
+}
+
+.list{
+	display:block;
+	width:100%;
+	min-height:200px;
+	font-size:0.8em;
+	background:rgba(204,204,204,0.8);
+	overflowY:scroll;	
+}
+
+#node-select #node-list{
+	width:100%;
+	height:calc(100% - 329px);
+}
+
+.transparent{
+	background:transparent;	
+}
+
+.node{
+	display:block;
+	position:absolute;
+	width:auto;
+	height:auto;
+	min-height:80px;
+	min-width:120px;
+	background:rgb(160,160,160);
+	border:1px solid rgb(160,80,80);
+	box-sizing:border-box;
+	-moz-box-sizing:border-box;
+	-webkit-box-sizing:border-box;
+	font-size:12px;
+	font-family:Tahoma, Geneva, sans-serif;
+	padding:0.2em;
+	margin:0.2em;
+	-webkit-box-shadow: 0 0 3px 0 rgba(0,0,0,0.54);
+	box-shadow: 0 0 3px 0 rgba(0,0,0,0.54);
+	z-index:10001;
+}
+
+.node-head{
+	display:block;
+	height:1.5em;
+	background:rgb(160,80,80);
+	color:black;
+	font-weight:bolder;
+	margin: -0.2em;
+	margin-bottom:0.2em;
+	z-index:+1;	
+	overflow:hidden;
+	padding-left: 0.2em;
+}
+
+.node-head a{
+	color:black;
+	text-decoration: none;
+	
+	display: block;
+	margin-left: -0.2em;
+	padding-bottom: 0.2em;
+}
+
+.node-head:hover a{
+	background: rgba(255,255,255,0.85) !important;
+}
+
+.node.active{
+	background:rgb(200,200,200);
+	border-color:rgb(200,200,255);
+}
+
+.node.active .node-head a{
+	background:rgb(200,200,255);
+}
+
+
+
+
+#shader-vertexStack{
+	right:86px;
+	bottom:3px;
+	z-index:+1;
+}
+
+#shader-pixelStack{
+	right:3px;
+	bottom:3px;	
+	z-index:+1;
+}
+
+.port-block{
+	display:block;
+	width:100%;
+	height: auto;
+	position: absolute;
+	left: 0;
+}
+
+.port-block.in{
+	top:0;
+	transform:translateY(-100%);	
+}
+.port-block.out{
+	bottom:0;
+	transform:translateY(100%);	
+}
+
+.port{
+	display:block;
+	width:12px;
+	height:12px;
+	position:relative;
+	background:grey;
+	z-index:-2;
+	-webkit-border-radius: 6px;
+	border-radius: 6px;
+}
+
+.port.in{
+	float:left;
+}
+
+.port.out{
+	float:right;
+}
+
+
+
+.port.empty{
+	background:red;
+}
+
+.port.full{
+	background:skyblue;
+}
+
+.port::after{
+	display:block;
+	position:absolute;
+	width:8px;
+	height:8px;
+	-webkit-border-radius: 6px;
+	border-radius: 6px;
+	content:'';
+	left:2px;
+	top:2px;
+	background:black;
+}
+
+.item-block{
+	background: rgb(80,160,160);
+	margin-bottom:3px;
+}
+
+.item-head{
+	display: block;
+	background: rgb(80,160,160);
+
+	color:rgb(40,40,40);
+	font-weight: bold;
+	padding-left: 0.5em;
+	
+}
+
+.item{
+	display:block;
+	width:calc(100% - 2px);
+	text-align: center;
+	height: 1.25em;
+	margin: 1px;
+}
+
+.item a{
+	text-decoration: none;
+	color:white;
+	background:rgb(160,80,80);
+	display: block;
+}
+
+.item a:hover{
+	color:bisque;
+	background:rgb(80,40,40);
+}
+
+.sub-pane{
+	display: block;
+	background: rgba(0,0,0,0.3);
+	color white;
+	margin-bottom: 3px;
+	border-bottom: 1px solid black;
+		-webkit-box-shadow: 0 3px 3px 0 rgba(0,0,0,0.54);
+	box-shadow: 0 3px 3px 0 rgba(0,0,0,0.54);
+}
+
+.sub-pane-head{
+	color : white;
+	font-weight: bold;
+	padding-left: 0.2em;
+	border-bottom: 1px solid lightgrey;
+	border-top: 1px solid lightgrey;
+	
+}
+.s-item{
+	display: block;
+	background: rgba(0,0,0,0.3);
+	color: white;
+}
+
+.s-item-head{
+	display: block;
+	background: rgba(0,0,0,0.3);
+	padding-left:  0.5em;
+}
+
+.s-input{
+  display: block;
+	width:100%;
+}
+	  
+   </style>
+<!-- Includes !--> 
+<script src="./babylon.js"></script> 
+<script src="./cyos.js"></script>   
+<!-- Control Shader !-->  
+<script type="application/shader" id="controlVertex">precision highp float;
+
+attribute vec3 position;
+attribute vec2 uv;
+
+uniform mat4 worldViewProjection;
+
+varying vec2 vUV;
+
+void main(void) {
+    gl_Position = worldViewProjection * vec4(position, 1.0);
+    vUV = uv;
+}
+</script>
+
+<script type="application/shader" id="controlPixel">
+precision highp float;
+varying vec2 vUV;
+
+
+void main(void) {
+	vec3 c = vec3(vUV.x);
+    gl_FragColor = vec4(c,1.0);
+}</script>   
+<!--END Control Shader !--> 
+</head>
+<body>
+<div class='full-wrap'>
+	<div class='menu'>
+		<span class="menu-top-item">File
+		<span class="menu-sub">
+			<span class="menu-item">New</span>
+			<span class="menu-item">Load</span>
+			<span class="menu-item">Export</span>
+			<hr />
+			<span class="menu-item">Share</span>
+			<span class="menu-item">Reset</span>					
+		</span>
+		</span>
+			
+		<span class="menu-top-item">Edit
+		<span class="menu-sub">		
+			<span class="menu-item">Copy</span>
+			<span class="menu-item">Paste</span>
+			<span class="menu-item">Dispose</span>
+		</span>
+		</span>
+		<span class="menu-top-item">Options
+			<span class="menu-sub">
+					<span class="menu-item" >Timing</span>					
+					<span class="menu-item">Lights</span>
+					<span class="menu-item">Information</span>
+					
+			</span>
+         </span>
+			
+			
+			<span class="menu-top-item" >About
+				<span class="menu-sub">
+		
+				<span class="menu-item">Documentation</span>
+				<span class="menu-item">About</span>
+				<span class="menu-item">Github</span>
+					
+				</span>
+			</span>
+			
+    </div>
+
+</div> <!-- END MENU !-->
+<div class='pane editor-view' id='node-select'>
+	<div class='list transparent' id='node-list'>
+    <div class='item-block' id='Variables'>
+    	<div class='item-head'>Variables</div>
+        <div class='item'><a href='#'>int</a></div>
+        <div class='item'><a href='#'>float</a></div>
+        <div class='item'><a href='#'>vec2</a></div>
+        <div class='item'><a href='#'>vec3</a></div>
+        <div class='item'><a href='#'>vec4</a></div>
+        <div class='item'><a href='#'>mat4</a></div>
+
+    </div>
+    <div class='item-block' id='Attributes'>
+    	<div class='item-head'>Attributes</div>
+        <div class='item'><a href='#'>int</a></div>
+        <div class='item'><a href='#'>float</a></div>
+        <div class='item'><a href='#'>vec2</a></div>
+        <div class='item'><a href='#'>vec3</a></div>
+        <div class='item'><a href='#'>vec4</a></div>
+        <div class='item'><a href='#'>mat4</a></div>
+    </div>
+    <div class='item-block' id='Uniforms'>
+    	<div class='item-head'>Uniforms</div>
+        <div class='item'><a href='#'>int</a></div>
+        <div class='item'><a href='#'>float</a></div>
+        <div class='item'><a href='#'>vec2</a></div>
+        <div class='item'><a href='#'>vec3</a></div>
+        <div class='item'><a href='#'>vec4</a></div>
+        <div class='item'><a href='#'>mat4</a></div>
+    </div>
+		    
+    </div>
+</div>
+<div class='pane editor-view' id='node-stack'>
+	
+</div>
+<div class='pane editor-view' id='settings'>
+	<div class='sub-pane' id='active-settings'>
+    	<div class='sub-pane-head'>Node Settings:</div>
+        <div class='sub-pane-content'>
+        </div>    
+    </div>
+    <div class='sub-pane' id='console'>
+    	<div class='sub-pane-head'>Console:</div>
+        <div class='sub-pane-content'>
+        </div>    
+    </div>
+
+</div>
+<div class='pane editor-view' id='preview'>
+<canvas id='shaderCanvas'></canvas>
+
+</div>
+
+
+</div><!-- END MAIN-WRAP !-->
+<script>
+document.addEventListener("DOMContentLoaded", function(e) {
+	
+	cyos = new CYOS();
+	console.log(cyos);
+
+	
+	}, false);
+</script>
+
+
+</body>
+</html>
