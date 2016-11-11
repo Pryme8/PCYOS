@@ -23,16 +23,16 @@ CYOS = function(){
 //Inits
 
 CYOS.prototype._init = function(){
-	this.vertexStack = this.createNode(CYOS.nodes.vertexStack);
-	var pWidth = this.vertexStack.dom.base.parentNode.offsetWidth-4;
-	var pHeight = this.vertexStack.dom.base.parentNode.offsetHeight-4;
-	this.moveNodeTo(this.vertexStack, [pWidth - this.vertexStack.dom.base.offsetWidth, pHeight - this.vertexStack.dom.base.offsetHeight]);
-	this.pixelStack = this.createNode(CYOS.nodes.pixelStack);
-	this.moveNodeTo(this.pixelStack, [pWidth - this.pixelStack.dom.base.offsetWidth*2.2, pHeight - this.pixelStack.dom.base.offsetHeight]);
-	var startColor = this.createNode(CYOS.nodes.vec3);
+	this.glPos = this.createNode(CYOS.nodes.gl_Position);
+	var pWidth = this.glPos.dom.base.parentNode.offsetWidth-4;
+	var pHeight = this.glPos.dom.base.parentNode.offsetHeight-4;
+	this.moveNodeTo(this.glPos, [pWidth - this.glPos.dom.base.offsetWidth, pHeight - this.glPos.dom.base.offsetHeight]);
+	this.glFragC = this.createNode(CYOS.nodes.gl_FragColor);
+	this.moveNodeTo(this.glFragC, [pWidth - this.glFragC.dom.base.offsetWidth*2.2, pHeight - this.glFragC.dom.base.offsetHeight]);
+	var startColor = this.createNode(CYOS.nodes.vec4);
 	console.log(startColor);
 
-	this.createLink(startColor.outputs[0], this.pixelStack.inputs[0]);
+	this.createLink(startColor.outputs[0], this.glFragC.inputs[0]);
 	this.selectNode(startColor);
 	
 	
@@ -121,6 +121,10 @@ CYOS.prototype._bindings = function(){
 	function changeActiveMD(e){
 			var t = e.target;
 			var actT = t.getAttribute('t');
+			if(actT != self._activeNode._id){
+				var n = self.findNodeById(actT);
+				if(n){self.selectNode(n);}
+			}
 			document.addEventListener('mouseup', changeActiveMU, false);
 			document.addEventListener('mousemove', changeActiveMM, false);
 	};
@@ -162,6 +166,7 @@ CYOS.prototype._bindings = function(){
 
 CYOS.prototype.createLink = function(A , B){
 	var link = A.makeLink(A, B);
+	
 	var wire = this.wireSystem.createWire(link);
 };
 
@@ -209,7 +214,61 @@ CYOS.prototype._settingsString = function(){
 			}
    		}
 	}
+	function parseObjectLink(n) {
+    var keys = Object.keys(n);
+    for (var i = 0; i < keys.length; i++) {
+        if (typeof n[keys[i]] === 'object') parseObject(n[keys[i]])
+        else{
+			s+="<div class=in-item>"+
+				"<div class='in-item-head'>"+keys[i]+":"+n[keys[i]]+"</div>"+
+				
+				"</div>";			
+			}
+   		}
+	}
+	
 	parseObject(node.settings);
+	s+="<div class='sub-pane' id='node-inputs'>";
+	s+="<div class='sub-pane-head'>Available Inputs</div>";
+	s+="<div class='sub-pane-content'>";
+	
+	
+	for(var i = 0; i<node.inputs.length; i++){
+			var IN = node.inputs[i], OUT;
+			if(typeof IN.links[0] != 'undefined'){
+			if(IN.links[0].A.parent._id == node._id){
+				IN = IN.links[0].A;
+				OUT = IN.links[0].B;
+			}else{
+				OUT = IN.links[0].A;
+				IN = IN.links[0].B;
+			}
+			}else{
+				continue;
+			}
+			
+			parseObjectLink(OUT.parent.settings);
+	}
+	
+	/*for(var i = 0; i<node.outputs.length; i++){
+			var OUT = node.outputs[i], IN;
+			if(typeof OUT.links[0] != 'undefined'){
+			if(OUT.links[0].A.parent._id == node._id){
+				OUT = OUT.links[0].A;
+				IN = OUT.links[0].B;
+			}else{
+				IN = OUT.links[0].A;
+				OUT = OUT.links[0].B;
+			}
+			}else{
+				continue;
+			}
+			console.log("OUTIN",OUT,IN);
+	}*/
+	
+	s+="</div>";
+	s+="</div>";
+	
 	return s;
 };
 
@@ -351,12 +410,32 @@ CYOS.nodes = {
 				
 		},
 	},
-	vertexStack : {
-		name : "Vertex Stack",
+		vec4 : {
+		name : "v4",
+		inputs : new Array(1),
+		outputs : new Array(1),
+		pUID : 0,
+		settings : {
+			r : '0.0',
+			b : '0.0',
+			g : '0.0',
+			a : '0.0',
+		},
+		compile : function(parent){							
+				return "vec3  "+parent.name+parent._id+" = vec3("+parent.settings.r+","+parent.settings.b+","+parent.settings.g+","+parent.settings.a+");";
+		},
+		pImgData : null,
+		preview : function(parent){							
+				
+		},
+	},
+	gl_Position : {
+		name : "gl_Position",
 		inputs : new Array(1),
 		outputs : null,
 		pUID : 0,
 		settings : {
+			outputString : "",
 		},
 		compile : function(parent){							
 				//return "vec3 SC = vec3("+parent.settings.red+","+parent.settings.green+","+parent.settings.blue+","+parent.settings.alpha+");";
@@ -366,15 +445,16 @@ CYOS.nodes = {
 				
 		},
 	},	
-	pixelStack : {
-		name : "Pixel Stack",
+	gl_FragColor : {
+		name : "gl_FragColor",
 		inputs : new Array(1),
 		outputs : null,
 		pUID : 0,
 		settings : {
+			outputString : "vec4(0.0,0.0,0.0,1.0)"
 		},
 		compile : function(parent){							
-				//return "vec3 SC = vec3("+parent.settings.red+","+parent.settings.green+","+parent.settings.blue+","+parent.settings.alpha+");";
+				return "gl_FragColor = "+parent.settings.outPutString+";";
 		},
 		pImgData : null,
 		preview : function(parent){							
@@ -433,6 +513,8 @@ CYOS.port = function(node){
 CYOS.port.prototype.makeLink = function(A, B){
 	var link = new CYOS.port.link(A, B, this);
 	this.links.push(link);
+	B.links.push(link);
+	
 	return link;
 };
 
@@ -553,6 +635,20 @@ CYOS.wireSystem.prototype.redraw = function(){
 		
 		
 	}
+};
+
+
+CYOS.prototype.compile = function(){
+	var fragShade = this.glFragC;
+	var chain = this.checkChain([fragShade.inputs[0]])
+	
+	
+};
+
+CYOS.prototype.checkChain = function(chain){
+	
+	
+	
 };
 
 
